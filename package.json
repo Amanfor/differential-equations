@@ -1,0 +1,19 @@
+{
+  "name": "differential-equations",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A JEE differential equations site built for learning: intuition, derivations, guided practice.",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "astro": "^4.16.18",
+    "katex": "^0.16.11",
+    "rehype-katex": "^7.0.1",
+    "remark-directive": "^4.0.0",
+    "remark-math": "^6.0.0"
+  }
+}

@@ -1,0 +1,178 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import Practice from '../../components/Practice.astro';
+import { TOPICS, topicIndex } from '../../data/topics';
+import { questionsFor } from '../../data/practice';
+import { chooserFor } from '../../data/chooser';
+import { renderTex } from '../../lib/tex';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('topics');
+  return entries.map((entry) => ({ params: { slug: entry.slug }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await entry.render();
+const meta = TOPICS.find((t) => t.slug === entry.slug);
+const i = topicIndex(entry.slug);
+const prev = i > 0 ? TOPICS[i - 1] : null;
+const next = i >= 0 && i < TOPICS.length - 1 ? TOPICS[i + 1] : null;
+const questions = questionsFor(entry.slug);
+const chooser = chooserFor(entry.slug);
+const BASE = import.meta.env.BASE_URL;
+---
+
+<Base title={meta?.title ?? entry.slug} description={meta?.blurb} wide active="">
+  <nav class="topic-crumb small">
+    <a href={`${BASE}/`}>topics</a> <span class="dim">/</span> {meta?.title ?? entry.slug}
+  </nav>
+
+  <article class="topic">
+    <Content />
+  </article>
+
+  {
+    chooser.length > 0 && (
+      <section id="recognise">
+        <h2>recognise the type</h2>
+        <p class="small">look at the equation, name the method, then see why. no solving yet — this is the part JEE tests.</p>
+        <div class="chooser" data-chooser>
+          {chooser.map((c) => (
+            <div class="q" data-chooser-item data-cid={c.id} data-answer={c.answer}>
+              <div class="q-prompt" set:html={renderTex(c.equation)} />
+              <ul class="q-opts" data-opts>
+                <li>
+                  <button type="button" class="q-opt" data-m="separable">
+                    <span class="k">a</span>
+                    <span>variable separable</span>
+                  </button>
+                </li>
+                <li>
+                  <button type="button" class="q-opt" data-m="homogeneous">
+                    <span class="k">b</span>
+                    <span>homogeneous (y = vx)</span>
+                  </button>
+                </li>
+                <li>
+                  <button type="button" class="q-opt" data-m="linear">
+                    <span class="k">c</span>
+                    <span>linear (integrating factor)</span>
+                  </button>
+                </li>
+                <li>
+                  <button type="button" class="q-opt" data-m="bernoulli">
+                    <span class="k">d</span>
+                    <span>Bernoulli (z = y^(1−n))</span>
+                  </button>
+                </li>
+                <li>
+                  <button type="button" class="q-opt" data-m="reducible">
+                    <span class="k">e</span>
+                    <span>reducible by substitution</span>
+                  </button>
+                </li>
+                <li>
+                  <button type="button" class="q-opt" data-m="exact">
+                    <span class="k">f</span>
+                    <span>exact / by inspection</span>
+                  </button>
+                </li>
+                <li>
+                  <button type="button" class="q-opt" data-m="none">
+                    <span class="k">g</span>
+                    <span>none of these</span>
+                  </button>
+                </li>
+              </ul>
+              <p class="q-msg" data-msg />
+              <div class="solution" data-solution>
+                <div class="solution-body" set:html={renderTex(c.why)} />
+                {c.tip && <p class="small" set:html={renderTex(c.tip)} />}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    )
+  }
+
+  {
+    questions.length > 0 && (
+      <section id="practice">
+        <h2>practice</h2>
+        <p class="small">
+          three hints, then the full solution — move only when you want to. every solution is checked by substituting
+          back into the equation.
+        </p>
+        <Practice questions={questions} />
+      </section>
+    )
+  }
+
+  {
+    questions.length === 0 && chooser.length === 0 && (
+      <p class="note">practice for this topic is being written up — see the question bank for graded drills.</p>
+    )
+  }
+
+  <nav class="prevnext">
+    {
+      prev ? (
+        <a href={`${BASE}/topics/${prev.slug}/`}>
+          <span class="np">← previous</span>
+          {prev.title}
+        </a>
+      ) : (
+        <a href={`${BASE}/`}>
+          <span class="np">← back</span>
+          all topics
+        </a>
+      )
+    }
+    {
+      next && (
+        <a class="next" href={`${BASE}/topics/${next.slug}/`}>
+          <span class="np">next →</span>
+          {next.title}
+        </a>
+      )
+    }
+  </nav>
+
+  <script>
+    import { initPractice } from '../../lib/practice-ui';
+    import { renderTex } from '../../lib/tex';
+
+    initPractice(document);
+
+    // method chooser: instant feedback, then the explanation
+    document.querySelectorAll<HTMLElement>('[data-chooser-item]').forEach((item) => {
+      const answer = item.getAttribute('data-answer') ?? '';
+      const opts = item.querySelector<HTMLElement>('[data-opts]');
+      const msg = item.querySelector<HTMLElement>('[data-msg]');
+      const sol = item.querySelector<HTMLElement>('[data-solution]');
+      opts?.querySelectorAll<HTMLButtonElement>('[data-m]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          if (opts.hasAttribute('data-done')) return;
+          opts.setAttribute('data-done', '');
+          const pick = btn.getAttribute('data-m') ?? '';
+          const ok = pick === answer;
+          opts.querySelectorAll<HTMLButtonElement>('[data-m]').forEach((b) => {
+            if (b.getAttribute('data-m') === answer) b.setAttribute('data-state', 'right');
+            else if (b === btn) b.setAttribute('data-state', 'wrong');
+          });
+          if (msg) {
+            msg.textContent = ok
+              ? 'right — and that is the whole skill: name it before you solve it.'
+              : 'not this one — the highlighted option is the type. here is why:';
+            msg.className = 'q-msg ' + (ok ? 'ok' : 'no');
+          }
+          sol?.setAttribute('data-open', '');
+        });
+      });
+    });
+
+    void renderTex;
+  </script>
+</Base>

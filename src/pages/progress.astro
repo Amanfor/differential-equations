@@ -1,0 +1,135 @@
+---
+import Base from '../layouts/Base.astro';
+import { TOPICS } from '../data/topics';
+import { QUESTIONS } from '../data/practice';
+
+const BASE = import.meta.env.BASE_URL;
+const totalQuestions = QUESTIONS.length;
+---
+
+<Base title="progress" active="progress" wide>
+  <h1>progress</h1>
+  <p class="lede">
+    everything below lives in this browser only — nothing is uploaded. attempted, correct and hints used, per topic,
+    plus a review queue that resurfaces what you missed on a spaced schedule.
+  </p>
+
+  <div class="stat-grid" id="stats">
+    <div class="stat"><span class="v" data-k="attempted">0</span><span class="k">attempted</span></div>
+    <div class="stat"><span class="v" data-k="correct">0</span><span class="k">correct</span></div>
+    <div class="stat"><span class="v" data-k="hints">0</span><span class="k">hints used</span></div>
+    <div class="stat"><span class="v" data-k="mastered">0</span><span class="k">topics mastered</span></div>
+    <div class="stat"><span class="v" data-k="due">0</span><span class="k">due for review</span></div>
+  </div>
+
+  <h2>per topic</h2>
+  <div id="topics">
+    {
+      TOPICS.map((t) => (
+        <div class="prog-row" data-topic-row={t.slug}>
+          <a class="t" href={`${BASE}/topics/${t.slug}/`}>
+            {t.title}
+          </a>
+          <span class="prog-meta" data-meta>
+            not started
+          </span>
+          <span class="prog-bar">
+            <i data-bar style="width:0%" />
+          </span>
+        </div>
+      ))
+    }
+  </div>
+
+  <p class="small" id="none" hidden>nothing recorded yet — attempt a few questions and this fills in.</p>
+
+  <h2>review queue</h2>
+  <p class="small">
+    questions you got wrong, or needed all three hints for, come back after an hour, then a day, then three. the point
+    is spacing, not volume.
+  </p>
+  <ul class="results" id="queue"></ul>
+  <p class="empty" id="queue-empty">nothing due right now.</p>
+  <p>
+    <a class="btn" href={`${BASE}/review/`}>open review mode</a>
+  </p>
+
+  <p class="pill-row">
+    <button class="btn btn-ghost" id="reset">reset all progress</button>
+  </p>
+
+  <p class="small">{totalQuestions} questions in the bank · {TOPICS.length} topics</p>
+
+  <script>
+    import { progress } from '../lib/progress';
+    import { TOPICS } from '../data/topics';
+    import { ALL_QUESTIONS_BY_ID } from '../data/questions-lite';
+
+    const BASE = import.meta.env.BASE_URL;
+
+    function render(): void {
+      progress.init();
+      const t = progress.totals();
+      const set = (k: string, v: string | number) => {
+        const el = document.querySelector(`[data-k="${k}"]`);
+        if (el) el.textContent = String(v);
+      };
+      set('attempted', t.attempted);
+      set('correct', t.correct);
+      set('hints', t.hints);
+      set('mastered', t.mastered);
+      const due = progress.soon();
+      set('due', due.length);
+
+      let any = false;
+      TOPICS.forEach((topic) => {
+        const row = document.querySelector<HTMLElement>(`[data-topic-row="${topic.slug}"]`);
+        if (!row) return;
+        const s = progress.topic(topic.slug);
+        const bar = row.querySelector<HTMLElement>('[data-bar]');
+        const meta = row.querySelector<HTMLElement>('[data-meta]');
+        if (bar) bar.style.width = Math.round(s.mastery * 100) + '%';
+        if (meta) {
+          if (s.attempted === 0) meta.textContent = 'not started';
+          else
+            meta.textContent = `${s.correct}/${s.attempted} correct · ${s.hints} hints · ${Math.round(
+              s.mastery * 100
+            )}%`;
+        }
+        if (s.attempted > 0) any = true;
+      });
+      const none = document.getElementById('none');
+      if (none) none.hidden = any;
+
+      const q = document.getElementById('queue');
+      const empty = document.getElementById('queue-empty');
+      if (q) {
+        const items = due
+          .map((id) => ({ id, card: (progress.store.cards as any)[id] }))
+          .filter((x) => x.card)
+          .sort((a, b) => a.card.due - b.card.due);
+        q.innerHTML = items
+          .map((x) => {
+            const meta = ALL_QUESTIONS_BY_ID[x.id];
+            const when = x.card.due <= Date.now() ? 'due now' : 'due ' + new Date(x.card.due).toLocaleDateString();
+            const title = meta ? meta.title : x.id;
+            const href = meta ? `${BASE}/topics/${meta.topic}/#q-${x.id}` : `${BASE}/practice/questions/`;
+            return `<li><a href="${href}"><span class="r-t">${title} <span class="tag">${when}</span></span><span class="r-s">${
+              meta ? meta.topic : ''
+            } · mistakes seen: ${x.card.lapses}</span></a></li>`;
+          })
+          .join('');
+        if (empty) empty.hidden = items.length > 0;
+      }
+    }
+
+    render();
+    window.addEventListener('de:progress', render);
+    document.getElementById('reset')?.addEventListener('click', () => {
+      if (confirm('erase all progress stored in this browser?')) {
+        progress.reset();
+        render();
+      }
+    });
+  </script>
+</Base>

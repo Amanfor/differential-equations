@@ -1,0 +1,18 @@
+---
+/**
+ * Practice question list. Markup comes from src/lib/qhtml.ts so it is identical
+ * everywhere a question can appear (topic pages and review mode).
+ */
+import { questionHTML } from '../lib/qhtml';
+import type { Question } from '../data/practice';
+
+interface Props {
+  questions: Question[];
+  showTopic?: boolean;
+  bare?: boolean;
+}
+const { questions, showTopic = false, bare = false } = Astro.props;
+const html = questions.map((q) => questionHTML(q, { showTopic, bare })).join('\n');
+---
+
+<div class="q-list" data-q-list set:html={html} />

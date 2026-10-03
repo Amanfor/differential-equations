@@ -1,0 +1,145 @@
+---
+import Base from '../layouts/Base.astro';
+import { TOPICS } from '../data/topics';
+import { progress } from '../lib/progress';
+
+const BASE = import.meta.env.BASE_URL;
+---
+
+<Base title="differential equations" active="index" wide>
+  <h1>differential equations</h1>
+  <p class="lede">
+    intuition first, then methods, then practice. every method is derived in front of you, every answer is checked,
+    and your progress stays on this device.
+  </p>
+
+  <input
+    class="search"
+    id="q"
+    type="search"
+    placeholder="search topics, methods, formulas… (press /)"
+    autocomplete="off"
+    spellcheck="false"
+    aria-label="search"
+  />
+  <ul class="results" id="results"></ul>
+  <p class="empty" id="empty" hidden>nothing matches that. try “integrating factor”, “homogeneous”, “cooling”.</p>
+
+  <ul class="cards" id="cards">
+    {
+      TOPICS.map((t, i) => (
+        <li>
+          <a class="card" href={`${BASE}/topics/${t.slug}/`} data-haystack={`${t.title} ${t.blurb} ${t.keywords.join(' ')}`}>
+            <span class="n">{String(i + 1).padStart(2, '0')} · {t.minutes} min</span>
+            <h3>{t.title}</h3>
+            <p>{t.blurb}</p>
+            <span class="bar"><i data-slug={t.slug} style="width:0%" /></span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+
+  <h2>more</h2>
+  <ul class="cards">
+    <li>
+      <a class="card" href={`${BASE}/practice/`}>
+        <span class="n">skill</span>
+        <h3>recognise the type</h3>
+        <p>given an equation, pick the method — this is what JEE actually tests. instant feedback on why.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href={`${BASE}/progress/`}>
+        <span class="n">you</span>
+        <h3>progress &amp; review</h3>
+        <p>attempted, correct, hints used — plus a spaced review queue of what you got wrong.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href={`${BASE}/cheatsheet/`}>
+        <span class="n">reference</span>
+        <h3>formula &amp; method cheat sheet</h3>
+        <p>one page: every canonical form, its substitution, and its answer formula.</p>
+      </a>
+    </li>
+    <li>
+      <a class="card" href={`${BASE}/practice/questions/`}>
+        <span class="n">drill</span>
+        <h3>graded question bank</h3>
+        <p>basic → JEE Main → JEE Advanced, each with three hints before the full solution.</p>
+      </a>
+    </li>
+  </ul>
+
+  <script>
+    import { search, type Entry } from '../lib/fuzzy';
+    import { progress } from '../lib/progress';
+
+    const BASE = import.meta.env.BASE_URL;
+    const input = document.getElementById('q') as HTMLInputElement;
+    const results = document.getElementById('results') as HTMLUListElement;
+    const empty = document.getElementById('empty') as HTMLParagraphElement;
+    const cards = document.getElementById('cards') as HTMLUListElement;
+
+    const staticEntries: Entry[] = [
+      { title: 'recognise the type — method chooser', subtitle: 'separable, homogeneous, linear, bernoulli or none', href: BASE + '/practice/', kind: 'skill', keywords: ['method chooser', 'recognise', 'identify type', 'which method'] },
+      { title: 'graded question bank', subtitle: 'hints, worked solutions, basic to JEE Advanced', href: BASE + '/practice/questions/', kind: 'drill', keywords: ['questions', 'practice', 'pyq', 'hints', 'solutions'] },
+      { title: 'progress and review', subtitle: 'mastery per topic, spaced repetition', href: BASE + '/progress/', kind: 'you', keywords: ['progress', 'mastery', 'review', 'spaced'] },
+      { title: 'formula and method cheat sheet', subtitle: 'every canonical form on one page', href: BASE + '/cheatsheet/', kind: 'ref', keywords: ['cheat sheet', 'formula', 'summary', 'reference'] },
+      { title: 'slope field plotter', subtitle: 'click to set an initial condition and watch the curve', href: BASE + '/topics/slope-fields/', kind: 'visual', keywords: ['slope field', 'direction field', 'integral curve', 'initial condition'] },
+      { title: 'orthogonal trajectories visual', subtitle: 'a family and the family that crosses it at 90°', href: BASE + '/topics/orthogonal-trajectories/', kind: 'visual', keywords: ['orthogonal', 'perpendicular', 'trajectories'] },
+      { title: 'growth, decay and cooling curves', subtitle: 'sliders for rate and initial value', href: BASE + '/topics/applications/', kind: 'visual', keywords: ['growth', 'decay', 'newton cooling', 'half life', 'logistic'] },
+    ];
+
+    const topicEntries: Entry[] = Array.from(document.querySelectorAll<HTMLAnchorElement>('#cards .card')).map((a) => ({
+      title: (a.querySelector('h3')?.textContent ?? '').trim(),
+      subtitle: (a.querySelector('p')?.textContent ?? '').trim(),
+      href: a.getAttribute('href') ?? '#',
+      kind: 'topic',
+      keywords: (a.dataset.haystack ?? '').split(/\s+/),
+    }));
+
+    const entries: Entry[] = [...topicEntries, ...staticEntries];
+
+    function render(q: string): void {
+      const hits = search(q, entries);
+      results.innerHTML = hits
+        .map(
+          (h) =>
+            `<li><a href="${h.href}"><span class="r-t">${h.titleHtml}${
+              h.kind ? ` <span class="tag">${h.kind}</span>` : ''
+            }</span><span class="r-s">${h.subtitle ?? ''}</span></a></li>`
+        )
+        .join('');
+      empty.hidden = !(q.trim() && hits.length === 0);
+      cards.style.display = q.trim() ? 'none' : '';
+    }
+
+    input?.addEventListener('input', () => render(input.value));
+    input?.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        input.value = '';
+        render('');
+        input.blur();
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      const t = e.target as HTMLElement;
+      const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+      if (e.key === '/' && !typing && input) {
+        e.preventDefault();
+        input.focus();
+        input.select();
+      }
+    });
+
+    // mastery bars
+    progress.init();
+    document.querySelectorAll<HTMLElement>('.card .bar i').forEach((b) => {
+      const slug = b.dataset.slug;
+      if (!slug) return;
+      b.style.width = Math.round(progress.topic(slug).mastery * 100) + '%';
+    });
+  </script>
+</Base>

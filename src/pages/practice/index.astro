@@ -1,0 +1,139 @@
+---
+/**
+ * Recognise the type — the method chooser.
+ * Given an equation, pick the method. This is the skill JEE actually tests.
+ */
+import Base from '../../layouts/Base.astro';
+import { CHOOSER, METHODS } from '../../data/chooser';
+import { renderTex } from '../../lib/tex';
+import { TOPICS } from '../../data/topics';
+
+const BASE = import.meta.env.BASE_URL;
+const order = METHODS.map((m) => m.key);
+const items = CHOOSER.map((c) => ({ ...c }));
+---
+
+<Base title="recognise the type" active="practice" wide>
+  <h1>recognise the type</h1>
+  <p class="lede">
+    in the exam you are never told which method to use. you look at the equation and decide. here you get instant
+    feedback on the label <em>and</em> on why the near-misses are not.
+  </p>
+
+  <section>
+    <h2>the seven answers</h2>
+    <p class="small">one of these is right. learn the tell, not the label.</p>
+    <table>
+      <thead><tr><th>method</th><th>the one-line tell</th></tr></thead>
+      <tbody>
+        {
+          METHODS.map((m) => (
+            <tr>
+              <td>{m.label}</td>
+              <td>{m.tell}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>drill</h2>
+    <p class="small">name the method before you try to solve. guessing costs more than looking.</p>
+
+    <div class="chooser" data-chooser>
+      {
+        items.map((c) => (
+          <div class="q" data-chooser-item data-cid={c.id} data-answer={c.answer} data-topic={c.topic}>
+            <div class="q-head">
+              <span class="tag">{c.topic.replace(/-/g, ' ')}</span>
+              <span class="spacer" />
+            </div>
+            <div class="q-prompt" set:html={renderTex(c.equation)} />
+            <ul class="q-opts" data-opts>
+              {order.map((k, i) => {
+                const m = METHODS.find((x) => x.key === k)!;
+                return (
+                  <li>
+                    <button type="button" class="q-opt" data-m={k}>
+                      <span class="k">{String.fromCharCode(97 + i)}</span>
+                      <span>{m.label}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <p class="q-msg" data-msg />
+            <div class="solution" data-solution>
+              <div class="solution-body" set:html={renderTex(c.why)} />
+              {c.tip && <p class="small" set:html={renderTex(c.tip)} />}
+            </div>
+          </div>
+        ))
+      }
+    </div>
+
+    <p id="chooser-empty" class="note" hidden>
+      the drill is being written up. in the meantime, work through the
+      <a href={`${BASE}/practice/questions/`}>question bank</a> — the method chooser appears inline on every topic page
+      too.
+    </p>
+  </section>
+
+  <h2>practice by topic</h2>
+  <ul class="cards">
+    {
+      TOPICS.map((t) => (
+        <li>
+          <a class="card" href={`${BASE}/topics/${t.slug}/`}>
+            <span class="n">{t.minutes} min</span>
+            <h3>{t.title}</h3>
+            <p>{t.blurb}</p>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+
+  <script>
+    import { initInteractions } from '../../lib/interact';
+
+    initInteractions(document);
+
+    // hide the drill section entirely if the bank is empty
+    const list = document.querySelector('[data-chooser]');
+    const empty = document.getElementById('chooser-empty');
+    if (empty && list && !list.querySelector('[data-chooser-item]')) {
+      (list.closest('section') as HTMLElement).hidden = true;
+      empty.hidden = false;
+    }
+
+    document.querySelectorAll<HTMLElement>('[data-chooser-item]').forEach((item) => {
+      const answer = item.getAttribute('data-answer') ?? '';
+      const opts = item.querySelector<HTMLElement>('[data-opts]');
+      const msg = item.querySelector<HTMLElement>('[data-msg]');
+      const sol = item.querySelector<HTMLElement>('[data-solution]');
+
+      opts?.querySelectorAll<HTMLButtonElement>('[data-m]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          if (opts.hasAttribute('data-done')) return;
+          opts.setAttribute('data-done', '');
+          const pick = btn.getAttribute('data-m') ?? '';
+          const ok = pick === answer;
+          opts.querySelectorAll<HTMLButtonElement>('[data-m]').forEach((b) => {
+            if (b.getAttribute('data-m') === answer) b.setAttribute('data-state', 'right');
+            else if (b === btn) b.setAttribute('data-state', 'wrong');
+          });
+          if (msg) {
+            msg.textContent = ok
+              ? 'right — and naming it is most of the work: the solve is now mechanical.'
+              : 'not this one. the highlighted option is the type — here is why:';
+            msg.className = 'q-msg ' + (ok ? 'ok' : 'no');
+          }
+          sol?.setAttribute('data-open', '');
+        });
+      });
+    });
+  </script>
+</Base>

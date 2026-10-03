@@ -1,0 +1,74 @@
+---
+import Base from '../layouts/Base.astro';
+import {
+  METHOD_TABLE_HTML,
+  INSPECTION_TABLE_HTML,
+  GEOMETRY_TABLE_HTML,
+  APP_TABLE_HTML,
+  ORDER_DEGREE_RULES_HTML,
+  ORTHO_RULES_HTML,
+  MISTAKES_HTML,
+} from '../data/cheatsheet';
+
+const BASE = import.meta.env.BASE_URL;
+---
+
+<Base title="cheat sheet" active="cheatsheet" wide>
+  <h1>formula & method cheat sheet</h1>
+  <p class="lede">
+    every canonical form on one page. save or print — this is the reference you want during practice, not a wall of
+    memorised formulas.
+  </p>
+
+  <section>
+    <h2>recognise the type → know the method → write the answer</h2>
+    <table>
+      <thead><tr><th>class</th><th>standard form</th><th>substitution / algorithm</th><th>answer formula</th></tr></thead>
+      <tbody set:html={METHOD_TABLE_HTML} />
+    </table>
+  </section>
+
+  <section>
+    <h2>exact differentials by inspection</h2>
+    <table>
+      <thead><tr><th>expression</th><th>exact differential</th></tr></thead>
+      <tbody set:html={INSPECTION_TABLE_HTML} />
+    </table>
+  </section>
+
+  <section>
+    <h2>tangent / normal / subtangent / subnormal</h2>
+    <table>
+      <thead><tr><th>quantity</th><th>formula</th></tr></thead>
+      <tbody set:html={GEOMETRY_TABLE_HTML} />
+    </table>
+  </section>
+
+  <section>
+    <h2>applications (growth, decay, cooling, circuits, mixing)</h2>
+    <table>
+      <thead><tr><th>problem</th><th>differential equation</th><th>solution</th><th>notes</th></tr></thead>
+      <tbody set:html={APP_TABLE_HTML} />
+    </table>
+  </section>
+
+  <section>
+    <h2>order & degree rules</h2>
+    <ul set:html={ORDER_DEGREE_RULES_HTML} />
+  </section>
+
+  <section>
+    <h2>orthogonal trajectories</h2>
+    <ul set:html={ORTHO_RULES_HTML} />
+  </section>
+
+  <section>
+    <h2>the seven mistakes almost everyone makes</h2>
+    <ul set:html={MISTAKES_HTML} />
+  </section>
+
+  <p class="note">
+    <a href={`${BASE}/`}>← back to topics</a> · <a href={`${BASE}/practice/questions/`}>graded question bank</a> · <a
+      href={`${BASE}/progress/`}>progress & review</a>
+  </p>
+</Base>

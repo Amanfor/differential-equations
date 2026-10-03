@@ -1,0 +1,74 @@
+---
+import 'katex/dist/katex.min.css';
+import '../styles/global.css';
+import { TOPICS } from '../data/topics';
+
+interface Props {
+  title?: string;
+  description?: string;
+  wide?: boolean;
+  active?: string;
+}
+const { title, description, wide = false, active } = Astro.props;
+const full = title ? `${title} — differential equations` : 'differential equations — learn them, don\'t memorise them';
+const path = Astro.url.pathname.replace(/\/$/, '') || '/';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{full}</title>
+    <meta name="description" content={description ?? 'A differential equations site for JEE built around intuition, derivations and guided practice.'} />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" href={import.meta.env.BASE_URL + '/favicon.svg'} type="image/svg+xml" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  </head>
+  <body>
+    <header class="site">
+      <div class="site-bar">
+        <a class="brand" href={import.meta.env.BASE_URL + '/'}>differential equations</a>
+        <nav>
+          <a href={import.meta.env.BASE_URL + '/'} aria-current={active === 'index' ? 'page' : undefined}>topics</a>
+          <a href={import.meta.env.BASE_URL + '/practice/'} aria-current={active === 'practice' ? 'page' : undefined}>practice</a>
+          <a href={import.meta.env.BASE_URL + '/progress/'} aria-current={active === 'progress' ? 'page' : undefined}>progress</a>
+          <a href={import.meta.env.BASE_URL + '/cheatsheet/'} aria-current={active === 'cheatsheet' ? 'page' : undefined}>cheat sheet</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class:list={[wide ? 'wrap wide' : 'wrap']}>
+      <slot />
+    </main>
+
+    <footer class="site">
+      <div class="wrap">
+        built for learning — intuition first, then methods, then practice. progress is stored on this device only.
+        {path && <span class="dim"> · {path}</span>}
+      </div>
+    </footer>
+
+    <script>
+      // Global boot: progress store + interaction runtime + practice + visuals.
+      import { initInteractions } from '../lib/interact';
+      import { initPractice } from '../lib/practice-ui';
+      import { mountAllVisuals } from '../visuals/registry';
+      import { progress } from '../lib/progress';
+
+      progress.init();
+      const start = () => {
+        initInteractions(document);
+        initPractice(document);
+        mountAllVisuals(document);
+      };
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', start, { once: true });
+      } else {
+        start();
+      }
+      window.__de = { progress };
+    </script>
+  </body>
+</html>

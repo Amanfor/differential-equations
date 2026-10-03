@@ -1,0 +1,179 @@
+---
+import Base from '../layouts/Base.astro';
+import { TOPICS } from '../data/topics';
+import { ALL_QUESTIONS_BY_ID } from '../data/questions-lite';
+
+const BASE = import.meta.env.BASE_URL;
+---
+
+<Base title="review" active="progress" wide>
+  <h1>review</h1>
+  <p class="lede">
+    the questions you got wrong — or needed all three hints for — come back on a spaced schedule: an hour, a day, three
+    days. forgetting on purpose, then being made to remember, is what makes it stick.
+  </p>
+
+  <div class="stat-grid">
+    <div class="stat"><span class="v" data-k="due">0</span><span class="k">due now</span></div>
+    <div class="stat"><span class="v" data-k="upcoming">0</span><span class="k">scheduled</span></div>
+    <div class="stat"><span class="v" data-k="weak">0</span><span class="k">topics to revisit</span></div>
+  </div>
+
+  <section>
+    <h2>due now</h2>
+    <ul class="results" id="due-list"></ul>
+    <p class="empty" id="due-empty">nothing is due. new attempts feed the queue.</p>
+    <p class="pill-row">
+      <button class="btn" id="start">start review session</button>
+      <a class="btn btn-ghost" href={`${BASE}/progress/`}>see all progress</a>
+    </p>
+  </section>
+
+  <section>
+    <h2>weak topics</h2>
+    <ul class="results" id="weak-list"></ul>
+    <p class="empty" id="weak-empty">no topic is flagged yet.</p>
+  </section>
+
+  <section id="session" hidden>
+    <h2>session</h2>
+    <p class="small" id="session-meta"></p>
+    <div id="session-body"></div>
+    <p class="pill-row">
+      <button class="btn btn-ghost" id="end">end session</button>
+    </p>
+  </section>
+
+  <p class="note">
+    review reuses the same question bank — same three hints, same checked solution. the only difference is that you
+    did not choose these questions; the schedule did.
+  </p>
+
+  <script>
+    import { progress } from '../lib/progress';
+    import { initPractice } from '../lib/practice-ui';
+    import { TOPICS } from '../data/topics';
+    import { ALL_QUESTIONS_BY_ID } from '../data/questions-lite';
+
+    const BASE = import.meta.env.BASE_URL;
+
+    function dueIds(): string[] {
+      progress.init();
+      return Object.entries(progress.store.cards)
+        .filter(([, c]) => c.due <= Date.now())
+        .sort((a, b) => a[1].due - b[1].due)
+        .map(([id]) => id);
+    }
+
+    function upcoming(): number {
+      progress.init();
+      return Object.values(progress.store.cards).filter((c) => c.due > Date.now()).length;
+    }
+
+    function render(): void {
+      const due = dueIds();
+      const set = (k: string, v: number) => {
+        const el = document.querySelector(`[data-k="${k}"]`);
+        if (el) el.textContent = String(v);
+      };
+      set('due', due.length);
+      set('upcoming', upcoming());
+
+      const weak = progress.weakTopics();
+      set('weak', weak.length);
+
+      const dueList = document.getElementById('due-list');
+      if (dueList) {
+        dueList.innerHTML = due
+          .map((id) => {
+            const meta = ALL_QUESTIONS_BY_ID[id];
+            const card = progress.store.cards[id];
+            const when = card.due <= Date.now() ? 'due now' : new Date(card.due).toLocaleDateString();
+            const title = meta?.title ?? id;
+            const href = meta ? `${BASE}/topics/${meta.topic}/#q-${id}` : `${BASE}/practice/questions/`;
+            return `<li><a href="${href}"><span class="r-t">${title} <span class="tag">${when}</span></span><span class="r-s">${
+              meta?.topic ?? ''
+            } · lapses: ${card.lapses}</span></a></li>`;
+          })
+          .join('');
+        const empty = document.getElementById('due-empty');
+        if (empty) empty.hidden = due.length > 0;
+      }
+
+      const weakList = document.getElementById('weak-list');
+      if (weakList) {
+        weakList.innerHTML = weak
+          .map((slug) => {
+            const t = progress.topic(slug);
+            const meta = TOPICS.find((x) => x.slug === slug);
+            return `<li><a href="${BASE}/topics/${slug}/"><span class="r-t">${
+              meta?.title ?? slug
+            } <span class="tag">${Math.round(t.mastery * 100)}%</span></span><span class="r-s">${
+              t.correct
+            }/${t.attempted} correct · ${t.hints} hints used</span></a></li>`;
+          })
+          .join('');
+        const empty = document.getElementById('weak-empty');
+        if (empty) empty.hidden = weak.length > 0;
+      }
+    }
+
+    let cache: { id: string; html: string }[] | null = null;
+
+    async function load(): Promise<{ id: string; html: string }[]> {
+      if (cache) return cache;
+      const res = await fetch(`${BASE}/data/review.json`);
+      const data = (await res.json()) as { questions: { id: string; html: string }[] };
+      cache = data.questions;
+      return cache;
+    }
+
+    document.getElementById('start')?.addEventListener('click', async () => {
+      const btn = document.getElementById('start') as HTMLButtonElement;
+      const sec = document.getElementById('session')!;
+      const body = document.getElementById('session-body')!;
+      const meta = document.getElementById('session-meta')!;
+      btn.disabled = true;
+      btn.textContent = 'loading…';
+      try {
+        const all = await load();
+        const due = new Set(dueIds());
+        const picked = all.filter((q) => due.has(q.id));
+        if (picked.length === 0) {
+          meta.textContent = 'nothing due — showing the topics you have missed most instead.';
+        } else {
+          meta.textContent = `${picked.length} question${picked.length > 1 ? 's' : ''} in the queue, easiest first.`;
+        }
+        // fall back to weak-topic questions when nothing is technically due
+        const finalList = picked.length
+          ? picked
+          : all.filter((q) => weakSet().has(q.topic)).slice(0, 6);
+        body.innerHTML = finalList.map((q) => q.html).join('\n');
+        sec.hidden = false;
+        initPractice(body);
+        sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (err) {
+        meta.textContent = 'could not load the review set — check your connection.';
+        console.error(err);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'start review session';
+      }
+    });
+
+    function weakSet(): Set<string> {
+      return new Set(progress.weakTopics());
+    }
+
+    document.getElementById('end')?.addEventListener('click', () => {
+      const sec = document.getElementById('session');
+      if (sec) sec.hidden = true;
+      document.getElementById('session-body')!.innerHTML = '';
+      render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    render();
+    window.addEventListener('de:progress', render);
+  </script>
+</Base>
