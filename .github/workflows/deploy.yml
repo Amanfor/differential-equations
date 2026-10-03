@@ -42,8 +42,12 @@ jobs:
           touch .publish/.nojekyll
           cd .publish
           git init -q -b gh-pages
-          # Reuse the credentials actions/checkout already installed for
-          # https://github.com/ rather than re-deriving them from GITHUB_TOKEN.
+          # actions/checkout stores its credential header in the *local* config of
+          # the checkout, so copy it into this throwaway repo before pushing.
+          HDR="$(git -C "$GITHUB_WORKSPACE" config --get http.https://github.com/.extraheader || true)"
+          if [ -n "$HDR" ]; then
+            git config http.https://github.com/.extraheader "$HDR"
+          fi
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git add -A
           git commit -q -m "deploy ${GITHUB_SHA::8}"
