@@ -35,7 +35,14 @@ export interface Question {
   source?: string;
 }
 
-export const QUESTIONS: Question[] = [];
+import { BANK_ORDER } from './practice/bank-order';
+import { BANK_SUBSTITUTION } from './practice/bank-substitution';
+
+/**
+ * The full bank. Topic modules are merged here so every page reads one list and
+ * the ids stay globally unique (each module owns its own prefix).
+ */
+export const QUESTIONS: Question[] = [...BANK_ORDER, ...BANK_SUBSTITUTION];
 
 export function questionsFor(topic: string, limit?: number): Question[] {
   const order: Record<Level, number> = { basic: 0, main: 1, advanced: 2 };
