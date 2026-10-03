@@ -42,6 +42,10 @@ jobs:
           touch .publish/.nojekyll
           cd .publish
           git init -q -b gh-pages
+          # Reuse the credentials actions/checkout already installed for
+          # https://github.com/ rather than re-deriving them from GITHUB_TOKEN.
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git add -A
           git commit -q -m "deploy ${GITHUB_SHA::8}"
-          git push -q --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+          git push --force origin gh-pages
+          echo "published gh-pages"
