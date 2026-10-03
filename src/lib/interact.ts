@@ -155,13 +155,14 @@ function initSpot(root: HTMLElement): void {
 
     steps.forEach((s) => {
       s.addEventListener('click', () => {
-        const flaw = s.getAttribute('data-flaw');
+        const flawed = s.hasAttribute('data-flaw');
         if (answered) return;
         answered = true;
-        if (flaw !== null) {
+        const flawOf = (n: HTMLElement) => n.querySelector<HTMLElement>('[data-flaw-html]')?.innerHTML ?? '';
+        if (flawed) {
           explain(s, 'right');
           if (msg) {
-            msg.textContent = 'correct — ' + flaw;
+            msg.innerHTML = 'correct — ' + flawOf(s);
             msg.className = 'spot-msg ok';
           }
         } else {
@@ -169,8 +170,7 @@ function initSpot(root: HTMLElement): void {
           const bad = steps.find((t) => t.hasAttribute('data-flaw'));
           if (bad) bad.setAttribute('data-revealed', '');
           if (msg) {
-            msg.textContent =
-              'this step is fine. the flawed one is highlighted — ' + (bad?.getAttribute('data-flaw') ?? '');
+            msg.innerHTML = 'this step is fine. the flawed one is highlighted — ' + (bad ? flawOf(bad) : '');
             msg.className = 'spot-msg no';
           }
         }

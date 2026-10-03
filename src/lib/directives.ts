@@ -54,6 +54,7 @@
  *   :::
  */
 import type { Root, Content, Parent } from 'mdast';
+import { renderTex } from './tex';
 
 type Dir = Content & { type: 'containerDirective'; name: string; label?: string | null; attributes?: Record<string, string> };
 
@@ -68,7 +69,9 @@ function attrs(node: Dir, extra: Record<string, string | number | boolean | unde
   const out: string[] = [];
   const a = node.attributes ?? {};
   for (const [k, v] of Object.entries(a)) {
-    if (k === 'class') continue;
+    // `class` and `bad` are handled separately: `bad` is typeset and exposed as
+    // hidden HTML rather than left as a raw LaTeX attribute.
+    if (k === 'class' || k === 'bad') continue;
     out.push(`${k}="${esc(v)}"`);
   }
   for (const [k, v] of Object.entries(extra)) {
@@ -109,11 +112,13 @@ function convert(node: Dir): Content[] {
       const a = node.attributes ?? {};
       const reason = a.reason ?? '';
       const fill = a.fill;
+      // `reason` is shown to the reader, so any $math$ in it must be typeset.
+      // `fill` is compared against what the student types, so it stays raw.
       const open =
         `<div class="step"${attrs(node, { 'data-step': '' })}` +
         (reason ? ` data-reason="${esc(reason)}"` : '') +
         (fill !== undefined ? ` data-fill="${esc(fill)}"` : '') +
-        `><span class="step-reason">${esc(reason)}</span>`;
+        `><span class="step-reason">${reason ? renderTex(reason) : ''}</span>`;
       const inner = wrap(node, `<div class="step-body">`, `</div>`);
       const ctl =
         fill !== undefined
@@ -126,7 +131,9 @@ function convert(node: Dir): Content[] {
       const q = node.attributes?.q ?? node.label ?? 'predict before you reveal';
       const inner = wrap(node, `<div class="predict-body">`, `</div>`);
       return [
-        html(`<div class="predict" data-predict data-q="${esc(q)}"><p class="predict-q"><span class="tag">predict</span> ${esc(q)}</p>`),
+        html(
+          `<div class="predict" data-predict data-q="${esc(q)}"><p class="predict-q"><span class="tag">predict</span> ${renderTex(q)}</p>`
+        ),
         ...inner,
         html(`</div>`),
       ];
@@ -155,9 +162,14 @@ function convert(node: Dir): Content[] {
     case 's': {
       const flaw = node.attributes?.bad;
       const open = `<button type="button" class="spot-step"${attrs(node, { 'data-spot-step': '' })}${
-        flaw !== undefined ? ` data-flaw="${esc(flaw)}"` : ''
+        flaw !== undefined ? ' data-flaw="1"' : ''
       }>`;
-      return wrap(node, open, `</button>`);
+      const parts = wrap(node, open, `</button>`);
+      if (flaw !== undefined) {
+        // hidden typeset explanation; the runtime reads its innerHTML
+        parts.splice(parts.length - 1, 0, html(`<span class="flaw" data-flaw-html>${renderTex(flaw)}</span>`));
+      }
+      return parts;
     }
 
     case 'work':
@@ -180,7 +192,7 @@ function convert(node: Dir): Content[] {
         html(
           `<figure class="visual" data-visual="${esc(id)}" data-props='${esc(JSON.stringify(props))}'>` +
             `<div class="visual-mount" data-mount></div>` +
-            (cap ? `<figcaption class="visual-cap">${esc(cap)}</figcaption>` : '')
+            (cap ? `<figcaption class="visual-cap">${renderTex(cap)}</figcaption>` : '')
         ),
         html(`</figure>`),
       ];

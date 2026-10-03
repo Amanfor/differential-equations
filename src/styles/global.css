@@ -504,3 +504,39 @@ footer.site .wrap { padding-top: 1.4rem; padding-bottom: 2.5rem; font-size: 0.82
   .derive-head .btn { margin-left: 0; }
   .visual { padding: 0.6rem; }
 }
+
+/* ---------- inspection widget ---------- */
+.inspect-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) auto minmax(0, 1fr);
+  gap: 0.35rem 0.6rem;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.92rem;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.86);
+  padding: 0.55rem 0.75rem;
+  cursor: pointer;
+  margin: 0.35rem 0;
+  transition: border-color 0.15s, background 0.15s;
+}
+.inspect-row:hover { background: rgba(255, 255, 255, 0.05); }
+.inspect-row .il { font-family: var(--mono); font-size: 0.86rem; }
+.inspect-row .ia { color: var(--dimmer); }
+.inspect-row .ir { font-family: var(--mono); font-size: 0.86rem; color: var(--dim); }
+.inspect-row .it {
+  grid-column: 1 / -1;
+  font-size: 0.83rem;
+  color: var(--accent);
+  display: none;
+}
+.inspect-row[data-state='on'] { border-color: var(--line-strong); background: rgba(255, 255, 255, 0.06); }
+.inspect-row[data-state='on'] .ir { color: #fff; }
+.inspect-row[data-state='on'] .it { display: block; }
+
+/* hidden typeset explanation inside a spot-the-mistake step */
+.spot-step .flaw { display: none; }
