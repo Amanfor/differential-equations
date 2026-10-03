@@ -1,54 +1,47 @@
-name: Deploy to GitHub Pages
+name: build and deploy
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: set up node
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: install
         run: npm ci
 
-      - name: Build project
+      - name: build
         run: npm run build
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact
-        with:
-          path: dist/
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deploy
-        uses: actions/deploy-pages
-        with:
-          auto-merge: true
-          output-directory: dist/
+      # The GitHub Pages "artifact" actions are not available on every host, so we
+      # publish the static build directly to the gh-pages branch instead.
+      - name: publish to gh-pages
+        run: |
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -rf .publish
+          cp -r dist .publish
+          touch .publish/.nojekyll
+          cd .publish
+          git init -q -b gh-pages
+          git add -A
+          git commit -q -m "deploy ${GITHUB_SHA::8}"
+          git push -q --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
